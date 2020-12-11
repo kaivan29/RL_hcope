@@ -32,16 +32,17 @@ class Softmax(Policy):
         """
         self._theta = p.reshape(self._theta.shape)
         
-    def get_probabilities(self, s_list, a_list):
+    def get_probabilities(self, S, A):
         """
         Given a state-action pair list, returns an 1D numpy array containing the 
         probabilities corresponding to those pairs.
         """
-        list_of_vals = []
-        for i in range(len(s_list)):
-            list_of_vals.append(self.getActionProbabilities(s_list[i])[a_list[i]])
+        values = []
+        len_s = len(S)
+        for i in range(len_s):
+            values.append(self.getActionProbabilities(S[i])[A[i]])
 
-        return np.array(list_of_vals)
+        return np.array(values)
 
     def __call__(self, state:int, action=None)->Union[float, np.ndarray]:
         action_prob = self.getActionProbabilities(state)

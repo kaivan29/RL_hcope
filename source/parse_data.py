@@ -2,11 +2,6 @@ import csv
 import itertools
 import numpy as np
 
-def output_returns_to_file(file_path, data):
-    with open(file_path, "w") as file:
-        wr = csv.writer(file, dialect='excel')
-        wr.writerow(data)
-
 def write_policy_to_file(file_path, data):
     with open(file_path, 'a') as file:
         file.write('\n'.join([str(i) for i in data]))
@@ -39,7 +34,7 @@ def parse_data(filename):
             # At each episode
             elif line_count == next_epi:
                 if counter % 100000 == 0:
-                    print("episode: ", counter)
+                    print("Episodes done: ", counter)
                 # update
                 H['S']=np.array(S)
                 H['A']=np.array(A)
@@ -52,8 +47,8 @@ def parse_data(filename):
                 line_count = 1
                 H ={}
                 S = []; A = []; R = []; PI = []
-                #if counter == 1000:
-                #    break
+                if counter == 1000:
+                    break
                 counter += 1
             
             # read all the data from time = 0 to tim = T for this episode
@@ -64,7 +59,7 @@ def parse_data(filename):
                 R.append(float(row[2]))
                 PI.append(float(row[3]))
 
-    return num_states, num_actions, episodes, Data
+    return num_states, num_actions, counter, Data
 
 def main():
     parse_data("data.csv")
