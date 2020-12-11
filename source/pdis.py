@@ -6,7 +6,7 @@ def PDIS_D(D_data, pi_e, gamma = 0.95):
     
     for i in range(n):
         data = D_data[i]
-        horizon = len(data["S"])
+        timesteps = len(data["S"])
 
         #Vectorized implementation
         S = np.array(data["S"], dtype=int)
@@ -16,8 +16,8 @@ def PDIS_D(D_data, pi_e, gamma = 0.95):
         PI_E = pi_e.get_probabilities(S, A)
 
         PI_B[np.where(PI_B == 0)[0]] = 0.00001
-        G = np.ones(horizon)
-        G = np.power(gamma, np.arange(horizon))
+        G = np.ones(timesteps)
+        G = np.power(gamma, np.arange(timesteps))
 
         PI_ratio = np.exp(np.cumsum(np.log(PI_E)) - np.cumsum(np.log(PI_B)))
 

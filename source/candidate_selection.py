@@ -1,36 +1,25 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Dec  9 16:31:22 2019
-
-@author: Saurabh
-"""
 import time
-
 import numpy as np
 from pdis import PDIS_D
 from scipy import stats
 import sys
 import cma
-from tabular_softmax import TabularSoftmax
+from softmax import Softmax
 
 
 class CandidateSelection:
     
-    def __init__(self, D, train_c, train_s,theta_b, policy_e, delta:int, cRatio:int,gamma:int , maxIter:int=10):
+    def __init__(self, D, train_c, test_s, theta_b, policy_e, delta:int, c:int, gamma:int):
         self._D = D
         self._train_c = train_c
-        self._train_s = train_s
-        self._train_s_size = len(train_s)
-        self._c = cRatio
+        self._test_s = test_s
+        self._test_s_size = len(test_s)
+        self._c = c
         self._delta = delta
         self._theta_b = theta_b
-        
         self._policy_e = policy_e
         self._policy_c = None
-        
         self._gamma = gamma
-        self._maxIter = maxIter
-        self._variance = 0
         
     @property
     def theta_b(self)->np.ndarray:
@@ -43,42 +32,38 @@ class CandidateSelection:
     def evaluateCMAES(self,sigma):
         start_time = time.time()
         
-        cmaEs = cma.CMAEvolutionStrategy(self.theta_b,sigma,{'maxiter':self._maxIter, 'popsize': 5})
-        # call the objectiveFn
-        possible_theta, evaluation_results = cmaEs.ask_and_eval(self.objectiveFn)
-        
+        CMAES = cma.CMAEvolutionStrategy(self.theta_b,sigma,{'maxiter':10, 'popsize': 10, 'seed': 111})
+        possible_theta, evaluation_results = CMAES.ask_and_eval(self.objectiveFunction)
         min_index = np.argmin(evaluation_results)
+        
         print(f'Time to find {len(evaluation_results)} candidate thetas: {time.time() - start_time}')
-        print("evaluation_results: " + str(evaluation_results))
+        print("Eval results: ", evaluation_results)
         
-        cmaEs.tell(possible_theta, evaluation_results)
-        cmaEs.logger.add()
-        cmaEs.disp()
-
-        print(cmaEs.result_pretty())
-        
+        CMAES.tell(possible_theta, evaluation_results)
+        CMAES.logger.add()
+        CMAES.disp()
+        #print(CMAES.result_pretty())
         candidate_theta = possible_theta[min_index]
         
         return candidate_theta, evaluation_results[min_index]
         
     
-    def objectiveFn(self, theta_e):
+    def objectiveFunction(self, theta_e):
         self._policy_e.parameters = theta_e
-        pdis_d_arr,pdis_d = PDIS_D(self._train_c, self._policy_e, self._gamma)
+        # generate pdis
+        pdis_d_est,pdis_d = PDIS_D(self._train_c, self._policy_e, self._gamma)
         
-        sigma_c = np.std(pdis_d_arr)
-        safety_term = (2*sigma_c/np.sqrt(self._train_s_size))*stats.t.ppf(1-self._delta,self._train_s_size-1)
+        variance_c = np.std(pdis_d_est)
+        safety_term = (2 * variance_c/np.sqrt(self._test_s_size)) * stats.t.ppf(1-self._delta, self._test_s_size-1)
         
-        print("candidate theta variance: ", sigma_c)
+        print("candidate theta variance: ", variance_c)
         print(f'mean pdis: {pdis_d}')
         
-        barierFnVal = pdis_d - safety_term
-        
-        
-        candidate_pass = (barierFnVal >= self._c)
+        diff = pdis_d - safety_term
+        candidate_pass = (diff >= self._c)
         print("candidate_pass: ", candidate_pass)
         
-        if(barierFnVal >= self._c):
+        if(candidate_pass):
             return -pdis_d
         else:
             return -pdis_d+1000000    
@@ -87,9 +72,9 @@ class CandidateSelection:
         self._policy_c = policy_c
         self._policy_c.parameters = theta_c
 
-        pdis_d_arr,pdis_d = PDIS_D(self._train_c, self._policy_c, self._gamma)
-        sigma_s = np.std(pdis_d_arr)
-        safety_term = (sigma_s/(np.sqrt(self._train_s_size)))*stats.t.ppf(1-self._delta,self._train_s_size-1)
+        pdis_d_est,pdis_d = PDIS_D(self._test_s, self._policy_c, self._gamma)
+        sigma_s = np.std(pdis_d_est)
+        safety_term = (sigma_s/(np.sqrt(self._test_s_size)))*stats.t.ppf(1-self._delta,self._test_s_size-1)
         
         print("mean:",pdis_d)
         print("variance:",sigma_s)
