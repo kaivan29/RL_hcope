@@ -52,8 +52,8 @@ def parse_data(filename):
                 line_count = 1
                 H ={}
                 S = []; A = []; R = []; PI = []
-                if counter == 1000:
-                    break
+                #if counter == 1000:
+                #    break
                 counter += 1
             
             # read all the data from time = 0 to tim = T for this episode
