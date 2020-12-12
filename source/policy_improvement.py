@@ -31,8 +31,8 @@ class PolicyImprovement:
         possible_theta, evaluation_results = CMAES.ask_and_eval(self.objectiveFunction)
         min_index = np.argmin(evaluation_results)
         
-        print(f'Time to find {len(evaluation_results)} selected thetas: {time.time() - start_time}')
-        print("Eval results: ", evaluation_results)
+        print(f'Total {len(evaluation_results)} selected thetas were computed in: {time.time() - start_time}')
+        print("CMAE evaluation results: ", evaluation_results)
         
         CMAES.tell(possible_theta, evaluation_results)
         CMAES.logger.add()
