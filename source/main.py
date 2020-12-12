@@ -14,9 +14,10 @@ np.random.seed(111)
 def policyGen():
     #Parse data.csv
     print("\nReading data.csv")
-    numStates, numActions, n, Data = parse_data("data.csv")
+    numStates, numActions, numEpisodes, D = parse_data("data.csv")
     theta_b = np.random.rand(numStates, numActions)
-    print("Data reading done of episodes: ", n)
+    #numEpisodes = len(D)
+    print("Data reading done of episodes: ", numEpisodes)
 
     policy_e = Softmax(numStates,numActions)
     delta = 0.05
@@ -33,24 +34,20 @@ def policyGen():
         iterations += 1
         print("Iteration: ",iterations)
         # split from randomly sampled data
-        Data_sample = np.random.choice(Data, n,replace=False)
+        D_sample = np.random.choice(D,numEpisodes,replace=False)
         # 100k for training
-        train_limit = int(n*0.1)
-        #print(train_limit)
-        train_c = Data_sample[:train_limit]
+        train_c = D_sample[:int(numEpisodes*0.1)]
         # 60k for testing
-        test_limit = int(n*0.94)
-        test_s = Data_sample[test_limit:]
+        test_s = D_sample[int(numEpisodes*0.94):]
 
         # generate policies
-        candidate_policy = PolicyImprovement(Data, train_c, test_s, theta_b, policy_e, delta, c, gamma)
+        candidate_policy = PolicyImprovement(D, train_c, test_s, theta_b, policy_e, delta, c, gamma)
         # evaluate
         selected_theta, result = candidate_policy.evaluate(sigma)
         print("Result: ", result)
         
         #conduct a safety test
         safety_pass=False
-#        if True:
         if result < 100:
             print("\n\nTheta found and performing safety test")
             policy_c = Softmax(numStates, numActions)
@@ -60,7 +57,6 @@ def policyGen():
         
         #output results and selected theta
         print(f'Safety pass checked and theta returned in time: {time.time() - start_time}')
-#        if True:
         if safety_pass == True:
             # print("Theta(4s+a): \n", selected_theta)
             print("Writing returns and policy to file")

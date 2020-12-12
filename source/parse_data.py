@@ -8,7 +8,7 @@ def write_policy_to_file(file_path, data):
         
 def parse_data(file_name):
     Data = []
-    with open(file_name) as csv_file:
+    with open(file_name, mode = 'r') as csv_file:
         csv_reader = csv.reader(csv_file, delimiter = ',')
         num_states = 18
         num_actions = 4
@@ -47,8 +47,8 @@ def parse_data(file_name):
                 line_count = 1
                 H ={}
                 S = []; A = []; R = []; PI = []
-#                 if counter == 1000:
-#                     break
+                # if counter == 100000:
+                #     break
                 counter += 1
             
             # read all the data from time = 0 to tim = T for this episode
