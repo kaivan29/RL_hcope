@@ -1,6 +1,6 @@
 import time
 import numpy as np
-from pdis import PDIS_D
+from pdis import compute_PDIS
 from scipy import stats
 import sys
 import cma
@@ -10,29 +10,24 @@ from softmax import Softmax
 class PolicyImprovement:
     
     def __init__(self, D, train_c, test_s, theta_b, policy_e, delta:int, c:int, gamma:int):
-        self._D = D
-        self._train_c = train_c
-        self._test_s = test_s
-        self._test_s_size = len(test_s)
-        self._c = c
-        self._delta = delta
-        self._theta_b = theta_b
-        self._policy_e = policy_e
-        self._policy_c = None
-        self._gamma = gamma
+        self.D = D
+        self.train_c = train_c
+        self.test_s = test_s
+        self.test_s_size = len(test_s)
+        self.theta_b = theta_b
+        self.policy_e = policy_e
+        self.policy_c = None
+        self.c = c
+        self.delta = delta
+        self.gamma = gamma
         
-    @property
-    def theta_b(self)->np.ndarray:
-        return self._theta_b.flatten()
+    def flatten_theta_b(self):
+        return self.theta_b.flatten()
     
-    @theta_b.setter
-    def theta_b(self, p:np.ndarray):
-        self._theta_b = p.reshape(self._theta_b.shape)
-    
-    def evaluate(self,sigma):
+    def evaluate(self, sigma):
         start_time = time.time()
         
-        CMAES = cma.CMAEvolutionStrategy(self.theta_b,sigma,{'maxiter':10, 'popsize': 10, 'seed': 111})
+        CMAES = cma.CMAEvolutionStrategy(self.flatten_theta_b, sigma, {'maxiter':10, 'popsize': 10, 'seed': 111})
         possible_theta, evaluation_results = CMAES.ask_and_eval(self.objectiveFunction)
         min_index = np.argmin(evaluation_results)
         
@@ -49,39 +44,43 @@ class PolicyImprovement:
         
     
     def objectiveFunction(self, theta_e):
-        self._policy_e.parameters = theta_e
+        self.policy_e.parameters = theta_e
         # generate pdis
-        pdis_d_est,pdis_d = PDIS_D(self._train_c, self._policy_e, self._gamma)
+        PDIS_est, PDIS_d = compute_PDIS(self.train_c, self.policy_e, self.gamma)
+        print("Mean pdis:", PDIS_d)
         
-        variance_c = np.std(pdis_d_est)
-        safety_term = (2 * variance_c/np.sqrt(self._test_s_size)) * stats.t.ppf(1-self._delta, self._test_s_size-1)
-        
+        variance_c = np.std(PDIS_est)
         print("Theta variance: ", variance_c)
-        print(f'Mean pdis: {pdis_d}')
         
-        diff = pdis_d - safety_term
-        threshold_pass = (diff >= self._c)
+        var = (2 * variance_c/np.sqrt(self.test_s_size))
+        stat = stats.t.ppf(1-self.delta, self.test_s_size-1)
+        safety_term = var * stat
+        safetyVal = PDIS_d - safety_term
+        
+        threshold_pass = (safetyVal >= self.c)
         print("Threshold pass: ", threshold_pass)
         
         if(threshold_pass):
-            return -pdis_d
+            return -PDIS_d
         else:
             return 1000000    
     
     def safetyTest(self, theta_c, policy_c):
-        self._policy_c = policy_c
-        self._policy_c.parameters = theta_c
-
-        pdis_d_est,pdis_d = PDIS_D(self._test_s, self._policy_c, self._gamma)
-        sigma_s = np.std(pdis_d_est)
-        safety_term = (sigma_s/(np.sqrt(self._test_s_size)))*stats.t.ppf(1-self._delta,self._test_s_size-1)
+        self.policy_c = policy_c
+        self.policy_c.parameters = theta_c
+        # generate pdis
+        PDIS_est, PDIS_d = compute_PDIS(self.test_s, self.policy_c, self.gamma)
+        print("Mean pdis:", PDIS_d)
         
-        print("mean:",pdis_d)
-        print("variance:",sigma_s)
+        variance_s = np.std(PDIS_est)
+        print("Theta variance:", variance_s)
         
-        safetyVal = pdis_d - safety_term
+        var = (variance_s/np.sqrt(self.test_s_size))
+        stat = stats.t.ppf(1-self.delta, self.test_s_size-1)
+        safety_term = var * stat
+        safetyVal = PDIS_d - safety_term
         
-        if(safetyVal>=self._c):
-            return True, pdis_d
+        if(safetyVal>=self.c):
+            return True, PDIS_d
         else:
-            return False, pdis_d
+            return False, PDIS_d
